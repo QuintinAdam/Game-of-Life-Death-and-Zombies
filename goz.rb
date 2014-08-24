@@ -1,13 +1,12 @@
 # Game of Life, Death and Zombies.
 
 # if a live cell has less of equal to 1 live neighbors or greater then 4 or more live neighbors the cell dies
-
 # if a dead cell has exactly 3 live neighbors the cell becomes alive
-
-# if a zombie cell has 4 or more live cells, zombie cell will die.
-
+# if a zombie cell has 3 or more live cells, zombie cell will die.
 # if zombie cell has less then 3 live cells it will convert all live cells around it to a zombie.
+# zombies can move if no live cells
 
+# get the screen size
 require 'io/console'
 $screen = IO.console.winsize
 
@@ -26,6 +25,7 @@ class Cell
   end
 
   def to_i
+    # will return one only if alive. Good for adding neighbors
     find_status == :alive ? 1 : 0
   end
 
@@ -34,11 +34,11 @@ class Cell
     # we call methods to make the if statement cleaner.
     case find_status
     when :alive
-      'o'
+      'O'.black.bg_green
     when :dead
-      ' '
+      ' '.black.bg_green
     else 
-      'z'
+      'Z'.bg_red.black
     end
   end
 
@@ -56,74 +56,53 @@ class Cell
     when :pending_zombiefication
       update_status!(:zombie)
     end
-
   end
-
 end
 
 class Game
-
-  def initialize(height = 25, width = 50, alive_chance = 0.2, sleep = 0.75)
-    @game_over, @cycle, @count, @height, @width, @sleep = false, 0, height * width, height, width, sleep #set up default variables
-    
-    # @world = Array.new(10) { Array.new(10) { Cell.new(0.5) } } 
+  NEIGHBORS_POS = [[-1, 0], [1, 0],           # sides
+                   [-1, 1], [0, 1], [1, 1],   # top
+                   [-1, -1], [0, -1], [1, -1] # bottom
+                  ]
+  def initialize(height = 50, width = 75, alive_chance = 0.2, sleep = 0.75, starting_zombies = 2)
+    @game_over, @cycle, @count, @height, @width, @sleep = false, 0, (height * width), height, width, sleep #set up default variables
     @world = Array.new(height) { Array.new(width) { Cell.new(alive_chance) } }
-    #make 1 zombie cell
-    #could make this random and do it x.times if you wanted more zombies
-    3.times do
+    starting_zombies.times do
       @world[rand(0...height)][rand(0...width)].update_status!(:zombie)
     end
   end
 
   def cycle!
     until @game_over
-      #display world
-      display
-      #check each cell neighbors
       check_each_cell!
-      #check if cell is a zombie and update it based on the zombie rules
       update_each_zombie_cell
-      #after updating all the cells to be zombies go through each cell and update based of normal rules
       update_each_normal_cell
-      #update and put stats also check if game is over
+      display
       update_and_display_stats
     end
   end
 
   def display
+    sleep(@sleep)
     system('clear')
     puts self
   end
 
   def update_and_display_stats
     @cycle += 1 #add 1 to the cycle every to so we can keep score
-    alive_count, dead_count, zombie_count = 0, 0, 0
-    flat_world = @world.flatten
-    flat_world.each do |cell|
-      case cell.find_status
-      when :alive
-        alive_count += 1
-      when :dead
-        dead_count += 1
-      when :zombie
-        zombie_count += 1
-      end
-    end
-
-    puts "Cycle: #{@cycle}   Alive Cells: #{alive_count}   Zombie Cells: #{zombie_count}   Dead Count: #{dead_count}   Total Cells: #{@count}"
+    counts = @world.flatten.each_with_object(Hash.new(0)) { |cell,counts| counts[cell.find_status] += 1 }
+    alive_count, dead_count, zombie_count = counts[:alive], counts[:dead], counts[:zombie]
+    puts "Cycle: #{@cycle}".cyan.bold.bg_black + "   Alive Cells: #{alive_count}".green.bold.bg_black  + "   Zombie Cells: #{zombie_count}".red.bold.bg_black + "   Dead Count: #{dead_count}".magenta.bold.bg_black + "   Total Cells: #{@count}".blue.bold.bg_black
     #check if game is done
     if zombie_count == 0
-      puts "Hurray! All the zombies are dead!!!"
+      puts "Hurray! All the zombies are dead!!!".black.bg_green
       @game_over = true
     elsif zombie_count + dead_count == @count
-      puts "The zombies have killed everyone..."
+      puts "The zombies have killed everyone....".black.bg_red
       @game_over = true
     elsif alive_count == 0
-      puts "Everyone is dead..."
+      puts "Everyone is dead...".black.bg_red
       @game_over = true
-    end
-    if @sleep
-      sleep(@sleep)
     end
   end
 
@@ -137,10 +116,7 @@ class Game
   end
 
   def count_alive_neighbours(row, cell)
-    [[-1, 0], [1, 0],           # sides
-     [-1, 1], [0, 1], [1, 1],   # top
-     [-1, -1], [0, -1], [1, -1] # bottom
-    ].inject(0) do |sum, pos|
+    NEIGHBORS_POS.inject(0) do |sum, pos|
       sum + @world[(row + pos[0]) % @height][(cell + pos[1]) % @width].to_i
     end
   end
@@ -151,12 +127,18 @@ class Game
         if cell.find_status == :zombie
           if cell.neighbors >= 3
             cell.update_status!(:dead)
+          elsif cell.neighbors == 0
+            # if no alive cells around a zombie we will make a zombie walk.
+            move_to = NEIGHBORS_POS.sample
+            # move zombie by killing it and moving to random location.
+            neighbor_cell = @world[(row_index + move_to[0]) % @height][(cell_index + move_to[1]) % @width]
+            if neighbor_cell.find_status == :dead
+              cell.update_status!(:dead)
+              neighbor_cell.update_status!(:pending_zombiefication)
+            end
           else
             #find the live cell around the zombie and turn live cells into pending zombie cells
-            [[-1, 0], [1, 0],           # sides
-             [-1, 1], [0, 1], [1, 1],   # top
-             [-1, -1], [0, -1], [1, -1] # bottom
-            ].each do |pos|
+            NEIGHBORS_POS.each do |pos|
               neighbor_cell = @world[(row_index + pos[0]) % @height][(cell_index + pos[1]) % @width]
               neighbor_cell.update_status!(:pending_zombiefication) if neighbor_cell.to_i == 1
             end
@@ -166,16 +148,19 @@ class Game
     end
   end
 
-  def  update_each_normal_cell
+  def update_each_normal_cell
     @world.each { |row| row.each { |cell| cell.update_cell_by_normal_rules } }
   end
 
   def to_s
-    # Override the to_s method so when we puts @world it will display how we need it. 
-    # Also uses the cell.to_s method to convert cell into better strings to display on the screen ('o', ' ', 'z')
     @world.map { |row| row.join }.join("\n")
   end
 end
 
-Game.new($screen.first - 2, $screen.last, 0.4, 0.1).cycle!
-# Game.new(10, 10, 0.2)
+class String
+  def black; "\033[30m#{self}\033[0m" end; def red; "\033[31m#{self}\033[0m" end; def green; "\033[32m#{self}\033[0m" end; def blue; "\033[34m#{self}\033[0m" end; def magenta; "\033[35m#{self}\033[0m" end; def cyan; "\033[36m#{self}\033[0m" end; def bg_black; "\033[40m#{self}\033[0m" end; def bg_red; "\033[41m#{self}\033[0m" end; def bg_green; "\033[42m#{self}\033[0m" end; def bold; "\033[1m#{self}\033[22m" end
+end
+
+#screen hight width, population, sleep, starting zombies.
+Game.new($screen.first / 2 , $screen.last / 2, 0.2, 0.1, 1).cycle!
+# Game.new.cycle!
