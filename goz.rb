@@ -96,7 +96,7 @@ class Game
     @cycle += 1 #add 1 to the cycle every to so we can keep score
     counts = @world.flatten.each_with_object(Hash.new(0)) { |cell,counts| counts[cell.find_status] += 1 }
     alive_count, dead_count, zombie_count = counts[:alive], counts[:dead], counts[:zombie]
-    puts "Cycle: #{@cycle}".cyan.bold.bg_black + "   Alive Cells: #{alive_count}".green.bold.bg_black  + "   Zombie Cells: #{zombie_count}".red.bold.bg_black + "   Dead Count: #{dead_count}".magenta.bold.bg_black + "   Total Cells: #{@count}".blue.bold.bg_black
+    puts "Cycle: #{@cycle}".cyan.bold.bg_black + "   Alive Cells: #{alive_count}".green.bold.bg_black  + "   Zombie Cells: #{zombie_count}".red.bold.bg_black + "   Dead Cells: #{dead_count}".magenta.bold.bg_black + "   Total Cells: #{@count}".blue.bold.bg_black
     #check if game is done
     if zombie_count == 0
       puts "Hurray! All the zombies are dead!!!".black.bg_green
