@@ -41,13 +41,15 @@ class Cell
       'O'.black.bg_green
     when :dead
       ' '.black.bg_green
-    else 
+    when :zombie
       'Z'.bg_red.black
+    when :llama
+      'L'.magenta.bg_black
     end
   end
 
   def update_status!(update_to)
-    # Update the status of the cell to whatever we pass in as a parameter. 
+    # Update the status of the cell to whatever we pass in as a parameter.
     @alive = update_to
   end
 
@@ -68,11 +70,19 @@ class Game
                    [-1, 1], [0, 1], [1, 1],   # top
                    [-1, -1], [0, -1], [1, -1] # bottom
                   ]
+  LLAMA_NEIGHBORS_POS = [[-1, 0], [1, 0], [-2, 0], [2, 0],           # sides
+                         [-1, 1], [0, 1], [1, 1], [-2, 2], [0, 2], [2, 2],   # top
+                         [-1, -1], [0, -1], [1, -1], [-2, -2], [0, -2], [2, -2] # bottom
+                        ]
   def initialize(height = 50, width = 75, alive_chance = 0.2, sleep = 0.75, starting_zombies = 2)
     @game_over, @cycle, @count, @height, @width, @sleep = false, 0, (height * width), height, width, sleep #set up default variables
     @world = Array.new(height) { Array.new(width) { Cell.new(alive_chance) } }
     starting_zombies.times do
       @world[rand(0...height)][rand(0...width)].update_status!(:zombie)
+    end
+    #llama time
+    3.times do
+      @world[rand(0...height)][rand(0...width)].update_status!(:llama)
     end
   end
 
@@ -81,6 +91,7 @@ class Game
       check_each_cell!
       update_each_zombie_cell
       update_each_normal_cell
+      kill_zombies_around_llama
       display
       update_and_display_stats
     end
@@ -124,7 +135,7 @@ class Game
       sum + @world[(row + pos[0]) % @height][(cell + pos[1]) % @width].to_i
     end
   end
-  
+
   def update_each_zombie_cell
     @world.each_with_index do |row, row_index|
       row.each_with_index do |cell, cell_index|
@@ -133,13 +144,7 @@ class Game
             cell.update_status!(:dead)
           elsif cell.neighbors == 0
             # if no alive cells around a zombie we will make a zombie walk.
-            move_to = NEIGHBORS_POS.sample
-            # move zombie by killing it and moving to random location.
-            neighbor_cell = @world[(row_index + move_to[0]) % @height][(cell_index + move_to[1]) % @width]
-            if neighbor_cell.find_status == :dead
-              cell.update_status!(:dead)
-              neighbor_cell.update_status!(:pending_zombiefication)
-            end
+            move_to(:zombie, cell, row_index, cell_index)
           else
             #find the live cell around the zombie and turn live cells into pending zombie cells
             NEIGHBORS_POS.each do |pos|
@@ -152,8 +157,34 @@ class Game
     end
   end
 
+  def kill_zombies_around_llama
+    @world.each_with_index do |row, row_index|
+      row.each_with_index do |cell, cell_index|
+        if cell.find_status == :llama
+          LLAMA_NEIGHBORS_POS.each do |pos|
+            neighbor_cell = @world[(row_index + pos[0]) % @height][(cell_index + pos[1]) % @width]
+            if neighbor_cell.find_status == :zombie
+              neighbor_cell.update_status!(:alive)
+            end
+          end
+          move_to(:llama, cell, row_index, cell_index)
+        end
+      end
+    end
+  end
+
   def update_each_normal_cell
     @world.each { |row| row.each { |cell| cell.update_cell_by_normal_rules } }
+  end
+
+  def move_to(item_to_move, cell, row_index, cell_index)
+    move_to = NEIGHBORS_POS.sample
+    neighbor_cell = @world[(row_index + move_to[0]) % @height][(cell_index + move_to[1]) % @width]
+    move_chance = item_to_move == :llama ? 0.4 : 0.2
+    if neighbor_cell.find_status == :dead && move_chance > rand
+      cell.update_status!(:dead)
+      neighbor_cell.update_status!(item_to_move)
+    end
   end
 
   def to_s
@@ -166,12 +197,12 @@ class String
 end
 
 #screen hight width, population, sleep, starting zombies.
-Game.new($screen.first / 2 , $screen.last / 2, 0.2, 0.1, 2).cycle!
+Game.new($screen.first / 2 , $screen.last / 2, 0.3, 0.1, 1).cycle!
 # Game.new( hight, width, % chance of live cell, sleep time, zombies at start of game).cycle!
 # Game.new.cycle!
 
 # - hight: Any Integer
 # - width: Any Integer
 # - % chance of live cell: From 0.1 to 1
-# - sleep time: Any Integer or float(higher the number the slower the program) 
+# - sleep time: Any Integer or float(higher the number the slower the program)
 # - zombies at start of game: Any Integer
