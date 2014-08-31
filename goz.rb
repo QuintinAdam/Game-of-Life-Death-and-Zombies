@@ -66,22 +66,23 @@ class Cell
 end
 
 class Game
-  NEIGHBORS_POS = [[-1, 0], [1, 0],           # sides
-                   [-1, 1], [0, 1], [1, 1],   # top
-                   [-1, -1], [0, -1], [1, -1] # bottom
+  NEIGHBORS_POS = [
+                   [-1, 1],  [0, 1],  [1, 1],
+                   [-1, 0],           [1, 0],
+                   [-1, -1], [0, -1], [1, -1]
                   ]
-  LLAMA_NEIGHBORS_POS = [[-1, 0], [1, 0], [-2, 0], [2, 0],           # sides
-                         [-1, 1], [0, 1], [1, 1], [-2, 2], [0, 2], [2, 2],   # top
-                         [-1, -1], [0, -1], [1, -1], [-2, -2], [0, -2], [2, -2] # bottom
+  LLAMA_NEIGHBORS_POS = [
+                         [-2, 2],  [-1, 2],  [0, 2],  [1, 2],  [2, 2],
+                         [-2, 1],  [-1, 1],  [0, 1],  [1, 1],  [2, 1],
+                         [-2, 0],  [-1, 0],           [1, 0],  [2, 0],
+                         [-2, -1], [-1, -1], [0, -1], [1, -1], [1, -2],
+                         [-2, -2], [-1, -2], [0, -2], [1, -2], [2, -2]
                         ]
   def initialize(height = 50, width = 75, alive_chance = 0.2, sleep = 0.75, starting_zombies = 2)
     @game_over, @cycle, @count, @height, @width, @sleep = false, 0, (height * width), height, width, sleep #set up default variables
     @world = Array.new(height) { Array.new(width) { Cell.new(alive_chance) } }
     starting_zombies.times do
       @world[rand(0...height)][rand(0...width)].update_status!(:zombie)
-    end
-    #llama time
-    3.times do
       @world[rand(0...height)][rand(0...width)].update_status!(:llama)
     end
   end
@@ -114,9 +115,6 @@ class Game
       @game_over = true
     elsif zombie_count + dead_count == @count
       puts "The zombies have killed everyone....".black.bg_red
-      @game_over = true
-    elsif alive_count == 0
-      puts "Everyone is dead...".black.bg_red
       @game_over = true
     end
   end
@@ -164,7 +162,7 @@ class Game
           LLAMA_NEIGHBORS_POS.each do |pos|
             neighbor_cell = @world[(row_index + pos[0]) % @height][(cell_index + pos[1]) % @width]
             if neighbor_cell.find_status == :zombie
-              neighbor_cell.update_status!(:alive)
+              neighbor_cell.update_status!(:dead)
             end
           end
           move_to(:llama, cell, row_index, cell_index)
@@ -197,7 +195,7 @@ class String
 end
 
 #screen hight width, population, sleep, starting zombies.
-Game.new($screen.first / 2 , $screen.last / 2, 0.3, 0.1, 1).cycle!
+Game.new($screen.first / 2 , $screen.last / 2, 0.3, 0.1, 3).cycle!
 # Game.new( hight, width, % chance of live cell, sleep time, zombies at start of game).cycle!
 # Game.new.cycle!
 

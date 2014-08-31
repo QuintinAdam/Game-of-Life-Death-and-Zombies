@@ -1,5 +1,7 @@
 #Game of Life, Death and Zombies
 
+## and llamas
+
 My modified version of Conway's game of life.
 
 ###Rules are simple:
@@ -9,7 +11,7 @@ My modified version of Conway's game of life.
   3. if a zombie cell has 3 or more live cells, zombie cell will die
   4. if zombie cell has less then 3 live cells it will convert all live cells around it to a zombie.
   5. if zombie cell has no live neighbors the zombie can move in any direction
-  6. llamas can cure zombies and have double the radius as other cells.
+  6. llamas can kill zombies and have double the radius as other cells.
 
 Game ends when:
 
